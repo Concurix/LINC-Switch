@@ -15,7 +15,8 @@
          get_connections/1,
          send/3,
          send/4,
-         barrier/2]).
+         barrier/2,
+	 setup_ping/1]).
 
 %% Message generators
 -export([hello/0,
@@ -225,3 +226,36 @@ do_send(Connections, {Address, Port}, Message) ->
             {ok, EncodedMessage} = of_protocol:encode(Message),
             ok = gen_tcp:send(Socket, EncodedMessage)
     end.
+
+%% For ping testing, set up one forwarding rule.
+
+setup_ping(CtrlPid) ->
+    FlowMod = #ofp_message{
+      version = 3,
+      xid = 100,
+      body = #ofp_flow_mod{
+	cookie = <<0:64>>,
+	cookie_mask = <<0:64>>,
+	table_id = 0,
+	command = add,
+	idle_timeout = 30000,
+	hard_timeout = 60000,
+	priority = 1,
+	buffer_id = 1,
+	out_port = 3,
+	out_group = 5,
+	flags = [],
+	match = #ofp_match {
+	  type = oxm,
+	  oxm_fields = [#ofp_field{
+			   class = openflow_basic,
+			   field = in_port,
+			   has_mask = false,
+			   value = <<1:32>>}]},
+	instructions = [#ofp_instruction_write_actions{
+			   actions = [#ofp_action_output{
+					 port = 2,
+					 max_len = 64}]}]}},
+    {ok, [Conn|_]} = get_connections(CtrlPid),
+    send(CtrlPid, Conn, FlowMod),
+    Conn.
