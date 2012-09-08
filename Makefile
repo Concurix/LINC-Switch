@@ -31,3 +31,7 @@ dialyzer: compile
 
 doc:
 	./rebar skip_deps=true doc
+
+purity:	compile
+	if [ ! -d purity ]; then mkdir purity; fi
+	purity -v -m -s purity/stats -o purity/results --top-funs purity/top_functions --apps apps/of_switch/ebin deps/*/ebin
